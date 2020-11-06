@@ -17,7 +17,7 @@ rvectors_without_opposite = np.array([[0,0,0],[0,0,1],])
 
 #Hyperparameters
 Optimizer = tf.train.AdamOptimizer(0.001)
-thrould = 1e-5
+threshold = 1e-5
 max_training_steps = 10000
 basis_added_step = 2
 
@@ -46,12 +46,12 @@ def main():
     tbhcnn.define_TB_representation(rvectors_without_opposite)
     tbhcnn.reinitialize()
     
-    finished = fitting(Optimizer, thrould , max_training_steps, tbhcnn)
+    finished = fitting(Optimizer, threshold , max_training_steps, tbhcnn)
     
     while not finished:
         tbhcnn.H_size_added += basis_added_step
         tbhcnn.reinitialize()
-        finished = fitting(Optimizer, thrould , max_training_steps, tbhcnn)
+        finished = fitting(Optimizer, threshold , max_training_steps, tbhcnn)
         
     Resulting_Hamiltonian = []
     for i in finished:
