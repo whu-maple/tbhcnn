@@ -1,7 +1,7 @@
 # tbhcnn
 Prototype code of the tight-binding hamiltonian construction neural network model. Note that it is not necessarily high-performance and well-optimized since it is a prototype code, however, there will be continuous updates later to add more examples and optimize the code.
 
-# requirements：
+# requirements
 tensorflow1.x （1.15）
 numpy （1.16.0）
 
