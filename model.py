@@ -39,7 +39,7 @@ class TBHCNN():
     
     def define_TB_representation(self, rvectors_without_opposite):
         """
-        define the TB model desired by select the considered lattice vectors
+        define the TB model desired by selecting the considered lattice vectors
         
         numr: number of the real-space Hamiltonians desired to be include 
         in the TB model in practice 
@@ -90,6 +90,7 @@ class TBHCNN():
             else:
                 self.HR.append(name['H%s'%R])
                 self.HR.append(name['H%s'%R_opposite])
+        self.HR = tf.cast(self.HR, tf.complex64)
                 
     def compute_bands(self):
         """
@@ -122,13 +123,13 @@ class TBHCNN():
 class Variation1():
     """
     Variation1 of the tight-binding Hamiltonian construction neural network
+    for optimizing a given TB model
     """
     def __init__(self):
         """
         initialize 
         """
         super(Variation1, self).__init__()
-        self.H_size_added = 0
         
     def read_training_set(self, references, kvectors, template_hamiltonians, rvectors_without_opposite):
         """
@@ -138,7 +139,8 @@ class Variation1():
         numk: number of the k points per referebce band
         numb: number of the reference bands
         numh: size of the template real-space Hamiltonians
-        numr: number of the lattice vector considered without opposite
+        numr: number of the real-space Hamiltonians desired to be include 
+        in the TB model in practice 
         
         Parameters
         ----------
@@ -163,7 +165,7 @@ class Variation1():
         self.H_size = template_hamiltonians.shape[1]
         self.references = tf.constant(references, tf.float64)
         self.K = tf.constant(kvectors, tf.complex64)
-        self.template = template_hamiltonians
+        self.templates = template_hamiltonians
         
         self.R = np.array([])
         for i in rvectors_without_opposite:
@@ -177,10 +179,11 @@ class Variation1():
 
     def initialize(self):
         """
-        initializethe real-space Hamiltonian matrices with the provided Hamiltonians
+        initializethe real-space Hamiltonian matrices with the template Hamiltonians
     
         """
         self.HR = []
+        self.HR_init = []
         name = locals()
         
         for i in range(self.R_without_opposite.shape[0]):
@@ -191,14 +194,23 @@ class Variation1():
                 R_opposite += str(-1 * self.R_without_opposite[i,j])
             R = R.replace("-","m")
             R_opposite = R_opposite.replace("-","m")
-            name['H%s'%R] = tf.cast(tf.Variable(self.template[i,:,:]), dtype=tf.complex64)
-            
+            name['H%s'%R] = tf.cast(tf.Variable(self.templates[i,:,:]), dtype=tf.complex64)
+            name['H%s_init'%R] = tf.cast(tf.constant(self.templates[i,:,:]), dtype=tf.complex64)
+           
             name['H%s'%R_opposite] = tf.cast(tf.transpose(name['H%s'%R]), dtype=tf.complex64)
+            name['H%s_init'%R_opposite] = tf.cast(tf.transpose(name['H%s_init'%R]), dtype=tf.complex64)
+            
             if R =="000":
-                self.HR.append(tf.linalg.band_part(name['H%s'%R],-1,0) + tf.transpose(tf.linalg.band_part(name['H%s'%R],-1,0)) - tf.linalg.tensor_diag_part(name['H%s'%R]))
+                self.HR.append(tf.linalg.band_part(name['H%s'%R],-1,0) + tf.transpose(tf.linalg.band_part(name['H%s'%R],-1,0)) - tf.linalg.band_part(name['H%s'%R],0,0))
+                self.HR_init.append(name['H%s_init'%R])
             else:
                 self.HR.append(name['H%s'%R])
                 self.HR.append(name['H%s'%R_opposite])
+                self.HR_init.append(name['H%s_init'%R])
+                self.HR_init.append(name['H%s_init'%R_opposite])
+        self.HR = tf.cast(self.HR, tf.complex64)
+        self.HR_init = tf.cast(self.HR_init, tf.complex64)
+            
                 
     def compute_bands(self, indices):
         """
@@ -216,7 +228,7 @@ class Variation1():
         for i in range(self.numk):
             HK = tf.zeros([self.H_size, self.H_size], dtype = tf.complex64)
             for j in range(self.numr):
-                HK += tf.scalar_mul(tf.exp(1j*tf.reduce_sum(self.K[i]*self.R[j])),self.HR[j])
+                HK += tf.scalar_mul(tf.exp(1j*tf.reduce_sum(self.K[i]*self.R[j])),self.HR[j,:,:])
                 
             e = tf.self_adjoint_eigvals(HK)
             e = tf.cast(e, tf.float64)
@@ -225,6 +237,8 @@ class Variation1():
         
         # the added bands will be placed above and/or below the references and 
         # will not be used for loss function computation
+        
+        self.wholebandstructure = reproduces
         
         reproduces = reproduces[:, indices[0]:indices[1]]
          
