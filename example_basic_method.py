@@ -7,19 +7,22 @@ import numpy as np
 
 # Energy bands data as references 
 references = np.load("./data/input/InSe Nanoribbon/InSe-references.npy")
-kvectors = np.load("./data/input/InSe Nanoribbon/InSe-kpoints.npy")
-# Here, to ensure that the Hamiltonians with the opposite lattice vectors tranpose each other
-# only one of them with the corresponding lattice vector should be included in the templates and rvectors, the other one will be handled automatically
-# e.g. both np.array([[0,0,0],[0,0,1],]) and np.array([[0,0,0],[0,0,-1],]) represent the lattice vector set np.array([[0,0,0],[0,0,1],[0,0,-1]])
-rvectors_without_opposite = np.array([[0,0,0],[0,0,1],])
+kvectors = np.load("./data/input/InSe Nanoribbon/InSe-kpoints.npy") # in units of[1/a, 1/b, 1/c] (a, b, and c are lattice constants)
 
-#Hyperparameters
+# Here, to ensure that the Hamiltonians with the opposite lattice vectors are always taken into consideration simultaneously, and they tranpose each other
+# only one of each pair of the opposite lattice vectors should be included in the rvectors array, the other one will be handled automatically
+# e.g., for this system, both np.array([[0,0,0],[0,0,1],]) and np.array([[0,0,0],[0,0,-1],]) represent the lattice vector set np.array([[0,0,0],[0,0,1],[0,0,-1]])
+# and in the end we shall get the 3 real-space Hamiltonian matrices we actually used to build the tight-binding model
+rvectors_without_opposite = np.array([[0,0,0],[0,0,1],], dtype=np.int32) # in units of[a, b, c] (a, b, and c are lattice constants)
+
+# Hyperparameters
 Optimizer = tf.train.AdamOptimizer(0.001)
 threshold = 1e-5
 max_training_steps = 10000
 basis_added_step = 2
 
 sess = tf.Session()
+
 def fitting(Optimizer, loss_threshold, max_train_steps, tbhcnn):
     reproduces = tbhcnn.compute_bands() 
     loss = tf.reduce_mean(tf.square(reproduces-tbhcnn.references))
@@ -51,12 +54,17 @@ def main():
         tbhcnn.reinitialize()
         finished = fitting(Optimizer, threshold , max_training_steps, tbhcnn)
         
+    # output the trained real-space Hamiltonians, their corresponding lattice vectors, their computed 
+    # bandstructure, and their reproduction of the reference bands
     Resulting_Hamiltonian = sess.run(tf.cast(finished, tf.float64))
+    Rvectors_of_the_resulting_hamiltonian = sess.run(tf.cast(tbhcnn.R, tf.int32))
+    Reproduced_TB_bandstructure = sess.run(tbhcnn.wholebandstructure)
+    Reproduced_TB_bands = sess.run(tbhcnn.reproduces)
             
-    np.save("./data/output/InSe Nanoribbon/1resulting_real_space_hamiltonians.npy", Resulting_Hamiltonian)
-    np.save("./data/output/InSe Nanoribbon/1rvectors_of_the_resulting_hamiltonian.npy", sess.run(tbhcnn.R))
-    np.save("./data/output/InSe Nanoribbon/1reproduced_TB_bands.npy", sess.run(tbhcnn.reproduces))
-    np.save("./data/output/InSe Nanoribbon/1TB_bandstructure.npy", sess.run(tbhcnn.wholebandstructure))
+    np.save("./data/output/InSe Nanoribbon/resulting_real_space_hamiltonians.npy", Resulting_Hamiltonian)
+    np.save("./data/output/InSe Nanoribbon/rvectors_of_the_resulting_hamiltonian.npy", Rvectors_of_the_resulting_hamiltonian)
+    np.save("./data/output/InSe Nanoribbon/TB_bandstructure.npy", Reproduced_TB_bandstructure)
+    np.save("./data/output/InSe Nanoribbon/reproduced_TB_bands.npy", Reproduced_TB_bands)
     
     print("final loss value: %.8f" % sess.run(tf.reduce_mean(tf.square(tbhcnn.reproduces-tbhcnn.references))))
 

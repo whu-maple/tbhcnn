@@ -71,25 +71,20 @@ class TBHCNN():
     
         """
         self.HR = []
-        name = locals()
         self.H_size = self.H_size_init + self.H_size_added
         
-        for i in range(self.R_without_opposite.shape[0]):
-            R = ""
-            R_opposite = ""
-            for j in range(3):
-                R += str(self.R_without_opposite[i,j])
-                R_opposite += str(-1 * self.R_without_opposite[i,j])
-            R = R.replace("-","m")
-            R_opposite = R_opposite.replace("-","m")
-            name['H%s'%R] = tf.cast(tf.Variable(tf.truncated_normal([self.H_size, self.H_size], mean=0.0, stddev=1.0,dtype=tf.float64)), dtype=tf.complex64)
+        for i in self.R_without_opposite:
+            H_tmp = tf.cast(tf.Variable(tf.truncated_normal([self.H_size, self.H_size], mean=0.0, stddev=1.0,dtype=tf.float64)), dtype=tf.complex64)
             
-            name['H%s'%R_opposite] = tf.cast(tf.transpose(name['H%s'%R]), dtype=tf.complex64)
-            if R =="000":
-                self.HR.append(name['H%s'%R] + tf.transpose(name['H%s'%R]))
+            # Once we take into consideration the real-space Hamiltonian H(R=Ri), 
+            # we must consider H(R=-Ri) also, which is the tranposed matrix of 
+            # H(R=Ri), to ensure that calculated reciprocal-space Hamiltonian maintains Hermitian
+            if np.sum(np.abs(i)) != 0:
+                self.HR.append(H_tmp)
+                self.HR.append(tf.transpose(H_tmp))
             else:
-                self.HR.append(name['H%s'%R])
-                self.HR.append(name['H%s'%R_opposite])
+                self.HR.append(H_tmp + tf.transpose(H_tmp)) #ensure that H(R=[0,0,0]) maintains symmetric  
+                
         self.HR = tf.cast(self.HR, tf.complex64)
                 
     def compute_bands(self):
@@ -108,12 +103,11 @@ class TBHCNN():
             e = tf.cast(e, tf.float64)
             e = tf.reshape(e,[1,self.H_size])
             reproduces = reproduces + tf.scatter_nd([[i]], e, [self.numk,self.H_size])
-        
-        # the added bands will be placed above and/or below the references and 
-        # will not be used for loss function computation
-        
+         
         self.wholebandstructure = reproduces
         
+        # the added bands will be placed above and/or below the references, 
+        # and they will not be used for loss function computation
         reproduces = reproduces[:, int(self.H_size_added/2):int(self.H_size_added//2)+self.numb]
          
         self.reproduces = reproduces
@@ -184,30 +178,25 @@ class Variation1():
         """
         self.HR = []
         self.HR_init = []
-        name = locals()
         
         for i in range(self.R_without_opposite.shape[0]):
-            R = ""
-            R_opposite = ""
-            for j in range(3):
-                R += str(self.R_without_opposite[i,j])
-                R_opposite += str(-1 * self.R_without_opposite[i,j])
-            R = R.replace("-","m")
-            R_opposite = R_opposite.replace("-","m")
-            name['H%s'%R] = tf.cast(tf.Variable(self.templates[i,:,:]), dtype=tf.complex64)
-            name['H%s_init'%R] = tf.cast(tf.constant(self.templates[i,:,:]), dtype=tf.complex64)
-           
-            name['H%s'%R_opposite] = tf.cast(tf.transpose(name['H%s'%R]), dtype=tf.complex64)
-            name['H%s_init'%R_opposite] = tf.cast(tf.transpose(name['H%s_init'%R]), dtype=tf.complex64)
+            H_trainable = tf.cast(tf.Variable(self.templates[i,:,:]), dtype=tf.complex64)
+            H_template = tf.cast(tf.constant(self.templates[i,:,:]), dtype=tf.complex64)
             
-            if R =="000":
-                self.HR.append(tf.linalg.band_part(name['H%s'%R],-1,0) + tf.transpose(tf.linalg.band_part(name['H%s'%R],-1,0)) - tf.linalg.band_part(name['H%s'%R],0,0))
-                self.HR_init.append(name['H%s_init'%R])
+            # Once we take into consideration the real-space Hamiltonian H(R=Ri), 
+            # we must consider H(R=-Ri) also, which is the tranposed matrix of 
+            # H(R=Ri), to ensure that calculated reciprocal-space Hamiltonian maintains Hermitian 
+            if np.sum(np.abs(self.R_without_opposite[i])) != 0:
+                self.HR.append(H_trainable)
+                self.HR_init.append(H_template)
+                self.HR.append(tf.transpose(H_trainable))
+                self.HR_init.append(tf.transpose(H_template))
             else:
-                self.HR.append(name['H%s'%R])
-                self.HR.append(name['H%s'%R_opposite])
-                self.HR_init.append(name['H%s_init'%R])
-                self.HR_init.append(name['H%s_init'%R_opposite])
+                
+                # ensure that H(R=[0,0,0]) is symmetric and initilized with the matrix element values of the template 
+                self.HR.append(tf.linalg.band_part(H_trainable,-1,0) + tf.linalg.band_part(H_trainable,0,-1) - tf.linalg.band_part(H_trainable,0,0))
+                self.HR_init.append(H_template)
+    
         self.HR = tf.cast(self.HR, tf.complex64)
         self.HR_init = tf.cast(self.HR_init, tf.complex64)
             
@@ -228,7 +217,7 @@ class Variation1():
         for i in range(self.numk):
             HK = tf.zeros([self.H_size, self.H_size], dtype = tf.complex64)
             for j in range(self.numr):
-                HK += tf.scalar_mul(tf.exp(1j*tf.reduce_sum(self.K[i]*self.R[j])),self.HR[j,:,:])
+                HK += tf.scalar_mul(tf.exp(1j*tf.reduce_sum(self.K[i]*self.R[j])),self.HR[j])
                 
             e = tf.self_adjoint_eigvals(HK)
             e = tf.cast(e, tf.float64)
@@ -237,7 +226,6 @@ class Variation1():
         
         # the added bands will be placed above and/or below the references and 
         # will not be used for loss function computation
-        
         self.wholebandstructure = reproduces
         
         reproduces = reproduces[:, indices[0]:indices[1]]
