@@ -60,10 +60,10 @@ def main():
     Reproduced_TB_bandstructure = sess.run(variation2.wholebandstructure)
     Reproduced_TB_bands = sess.run(variation2.reproduces)
             
-    np.save("resulting_real_space_hamiltonians.npy", Resulting_Hamiltonian)
-    np.save("rvectors_of_the_resulting_hamiltonian.npy", Rvectors_of_the_resulting_hamiltonian)
-    np.save("TB_bandstructure.npy", Reproduced_TB_bandstructure)
-    np.save("reproduced_TB_bands.npy", Reproduced_TB_bands)
+    np.save("./data/output/variation2 13AGNR/resulting_real_space_hamiltonians.npy", Resulting_Hamiltonian)
+    np.save("./data/output/variation2 13AGNR/rvectors_of_the_resulting_hamiltonian.npy", Rvectors_of_the_resulting_hamiltonian)
+    np.save("./data/output/variation2 13AGNR/TB_bandstructure.npy", Reproduced_TB_bandstructure)
+    np.save("./data/output/variation2 13AGNR/reproduced_TB_bands.npy", Reproduced_TB_bands)
     
     print("final mean square error for band reproduction : %.8f" % sess.run(tf.reduce_mean(tf.square(variation2.reproduces-variation2.references))))
     sess.close()
