@@ -4,16 +4,18 @@ import numpy as np
 
 # we take the example of the 13-atom-wide InSe
 
+# Define the tight-binding representation by selecting the real-space Hamiltonian considered
+"""
+Here, to ensure that the Hamiltonians with the opposite lattice vectors are always taken into consideration simultaneously, and they tranpose each other
+only one of each pair of the opposite lattice vectors should be included in the rvectors array, the other one will be handled automatically
+e.g., for this system, both np.array([[0,0,0],[0,0,1],]) and np.array([[0,0,0],[0,0,-1],]) represent the lattice vector set np.array([[0,0,0],[0,0,1],[0,0,-1]])
+and in the end we shall get the 3 real-space Hamiltonian matrices we actually used to build the tight-binding model
+"""
+rvectors_without_opposite = np.array([[0,0,0],[0,0,1],], dtype=np.int32) # in units of[a, b, c] (a, b, and c are the real-space basis vectors; [l, n, m] means the lattice vector l*a+n*b+m*c)
 
 # Energy bands data as references 
 references = np.load("./data/input/InSe Nanoribbon/InSe-references.npy")
-kvectors = np.load("./data/input/InSe Nanoribbon/InSe-kpoints.npy") # in units of[1/a, 1/b, 1/c] (a, b, and c are lattice constants)
-
-# Here, to ensure that the Hamiltonians with the opposite lattice vectors are always taken into consideration simultaneously, and they tranpose each other
-# only one of each pair of the opposite lattice vectors should be included in the rvectors array, the other one will be handled automatically
-# e.g., for this system, both np.array([[0,0,0],[0,0,1],]) and np.array([[0,0,0],[0,0,-1],]) represent the lattice vector set np.array([[0,0,0],[0,0,1],[0,0,-1]])
-# and in the end we shall get the 3 real-space Hamiltonian matrices we actually used to build the tight-binding model
-rvectors_without_opposite = np.array([[0,0,0],[0,0,1],], dtype=np.int32) # in units of[a, b, c] (a, b, and c are lattice constants)
+kvectors = np.load("./data/input/InSe Nanoribbon/InSe-kpoints.npy") # in units of 1/2pi*[ak, bk, ck] (ak, bk, and ck are the corresponding k-space basis vectors; [l, n, m] means the k-vector (l/2pi)*ak+(n/2pi)*bk+(m/2pi)*ck)
 
 # Hyperparameters
 Optimizer = tf.train.AdamOptimizer(0.001)
@@ -56,6 +58,7 @@ def main():
         
     # output the trained real-space Hamiltonians, their corresponding lattice vectors, their computed 
     # bandstructure, and their reproduction of the reference bands
+    
     Resulting_Hamiltonian = sess.run(tf.cast(finished, tf.float64))
     Rvectors_of_the_resulting_hamiltonian = sess.run(tf.cast(tbhcnn.R, tf.int32))
     Reproduced_TB_bandstructure = sess.run(tbhcnn.wholebandstructure)

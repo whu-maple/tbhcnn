@@ -4,20 +4,23 @@ import numpy as np
 
 # we take the example of the monolayer black phosphorus
 
-
-# Energy bands data as references and unoptimized Hamiltonians as templates
-references = np.load("./data/input/variation1 Monolayer BP/MBP-references.npy")
-kvectors = np.load("./data/input/variation1 Monolayer BP/MBP-kpoints.npy")  # in units of[1/a, 1/b, 1/c] (a, b, and c are lattice constants)
-indices = [4,12] #point out the indices of the references bands within the whole band structure
-
-# Here, to ensure that the Hamiltonians with the opposite lattice vectors are always taken into consideration simultaneously, and they tranpose each other
-# only one of them with the corresponding lattice vector should be included in the provided templates and rvectors, the other one will be handled automatically
-# e.g. for this system, just provide the rvectors =  np.array([[0,0,0],[0,0,1],[0,1,0],[0,1,1],[0,1,-1]]) and the templates Hamiltonians with the same order
-# and in the end we shall get the 9 Hamiltonian matrices we actually used to build the tight-binding model
+# Provide the unoptimized Hamiltonian matrices as the templates and their lattice vectors
+"""
+Here, to ensure that the Hamiltonians with the opposite lattice vectors are always taken into consideration simultaneously, and they tranpose each other
+only one of them with the corresponding lattice vector should be included in the provided templates and rvectors, the other one will be handled automatically
+e.g., for this system, just provide the rvectors =  np.array([[0,0,0],[0,0,1],[0,1,0],[0,1,1],[0,1,-1]]) and the templates Hamiltonians with the same order
+and in the end we shall get the 9 Hamiltonian matrices we actually used to build the tight-binding model
+"""
 templates = np.load("./data/input/variation1 Monolayer BP/MBP-templates.npy")
-rvectors = np.load("./data/input/variation1 Monolayer BP/MBP-latticevectors_of_templates.npy")  # in units of[a, b, c] (a, b, and c are lattice constants)
+rvectors = np.load("./data/input/variation1 Monolayer BP/MBP-latticevectors_of_templates.npy") # in units of[a, b, c] (a, b, and c are the real-space basis vectors; [l, n, m] means the lattice vector l*a+n*b+m*c)
 
-#Hyperparameters
+# Energy bands data as references
+references = np.load("./data/input/variation1 Monolayer BP/MBP-references.npy")
+kvectors = np.load("./data/input/variation1 Monolayer BP/MBP-kpoints.npy")  # in units of 1/2pi*[ak, bk, ck] (ak, bk, and ck are the corresponding k-space basis vectors; [l, n, m] means the k-vector (l/2pi)*ak+(n/2pi)*bk+(m/2pi)*ck)
+indices = [4,12] #point out the indices of the reference bands within the whole tight-binding band structure
+
+
+# Hyperparameters
 Optimizer = tf.train.AdamOptimizer(0.001)
 lamda = 1/1000
 threshold = 1e-6
