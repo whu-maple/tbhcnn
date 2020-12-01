@@ -196,7 +196,8 @@ class Variation1():
             else:
                 
                 # ensure that H(R=[0,0,0]) is symmetric and initilized with the matrix element values of the template 
-                self.HR.append(tf.linalg.band_part(H_trainable,-1,0) + tf.linalg.band_part(H_trainable,0,-1) - tf.linalg.band_part(H_trainable,0,0))
+                # self.HR.append(tf.linalg.band_part(H_trainable,-1,0) + tf.linalg.band_part(H_trainable,0,-1) - tf.linalg.band_part(H_trainable,0,0))
+                self.HR.append((tf.transpose(H_trainable)+H_trainable)/2)
                 self.HR_init.append(H_template)
     
         self.HR = tf.cast(self.HR, tf.complex64)
